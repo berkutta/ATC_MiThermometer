@@ -15,6 +15,9 @@ _attribute_ram_code_ void irq_handler(void)
 	irq_blt_sdk_handler();
 }
 
+extern void app_uart_init(void);
+extern void at_print(unsigned char * str);
+
 _attribute_ram_code_ int main (void)    //must run in ramcode
 {
 	blc_pm_select_internal_32k_crystal();
@@ -29,6 +32,9 @@ _attribute_ram_code_ int main (void)    //must run in ramcode
 #endif
 	blc_app_loadCustomizedParameters();
 	
+	//app_uart_init();
+	//at_print("Gugus\r\n");
+
 	init_i2c();
 	if( deepRetWakeUp ){
 		user_init_deepRetn ();

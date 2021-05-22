@@ -39,6 +39,69 @@ RAM uint8_t humi_alarm_point = 5;
 RAM int16_t comfort_x[] = {2000, 2560, 2700, 2500, 2050, 1700, 1600, 1750};
 RAM uint16_t comfort_y[] = {2000, 1980, 3200, 6000, 8200, 8600, 7700, 3800};
 
+
+#define aht10_address 0b00100011
+
+void bh1750_init(void) {
+	/*
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, aht10_address << 1 | WRITE_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, 0b00000001, ACK_CHECK_EN);
+    i2c_master_stop(cmd);
+    int ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, 100 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+	*/
+
+	i2c_set_id(aht10_address << 1);
+	i2c_write_byte(0x00, 0, 0b00000001);
+}
+
+void bh1750_meassure(void) {
+	/*
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, aht10_address << 1 | WRITE_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, 0b00100000, ACK_CHECK_EN);
+    i2c_master_stop(cmd);
+    int ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, 100 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+
+    vTaskDelay(120 / portTICK_PERIOD_MS);
+	*/
+
+	i2c_set_id(aht10_address << 1);
+	i2c_write_byte(0x00, 0, 0b00100000);
+
+	sleep_us(120 * 1000);
+	//sleep_us(500);
+}
+
+uint16_t bh1750_getLux(void) {
+    bh1750_meassure();
+
+    uint8_t buffer[2];
+	/*
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, aht10_address << 1 | READ_BIT, ACK_CHECK_EN);
+    i2c_master_read(cmd, buffer, 2, I2C_MASTER_LAST_NACK);
+    i2c_master_stop(cmd);
+    int ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, 100 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+	*/
+
+	i2c_set_id(aht10_address << 1);
+	i2c_read_series(0x00, 0, (uint8_t*)buffer, 2);
+
+    //uint16_t lux = (buffer[0] << 8 | buffer[1]) / 1.2;
+	uint16_t lux = (buffer[0] << 8 | buffer[1]);
+
+    //printf("[0]: %d, [1]: %d, Value: %d \n", buffer[0], buffer[1], lux);
+
+    return lux;
+}
+
 _attribute_ram_code_ bool is_comfort(int16_t t, uint16_t h) {
     bool c = 0;
     uint8_t npol = sizeof(comfort_x);
@@ -73,9 +136,21 @@ _attribute_ram_code_ void user_init_deepRetn(void){//after sleep this will get e
 	blc_ll_recoverDeepRetention();
 }
 
+
+extern void app_uart_init(void);
+extern void at_print(unsigned char * str);
+
 void main_loop(){	
 	if((clock_time()-last_delay) > 5000*CLOCK_SYS_CLOCK_1MS){//main loop delay
-	
+		
+
+		bh1750_init();
+		uint16_t lux = bh1750_getLux();
+		
+		//char gugus[50];
+		//sprintf(gugus, "Measszrement: Lux: %d \r\n", lux);
+		//at_print(gugus);
+
 		if((clock_time()-last_battery_delay) > 5*60000*CLOCK_SYS_CLOCK_1MS){//Read battery delay
 			battery_mv = get_battery_mv();
 			battery_level = get_battery_level(get_battery_mv());
@@ -89,7 +164,8 @@ void main_loop(){
 			meas_count=0;
 		
 			if((temp-last_temp > temp_alarm_point)||(last_temp-temp > temp_alarm_point)||(humi-last_humi > humi_alarm_point)||(last_humi-humi > humi_alarm_point)){// instant advertise on to much sensor difference
-				set_adv_data(temp, humi, battery_level, battery_mv);
+				//set_adv_data(temp, humi, battery_level, battery_mv);
+				set_adv_data_new(lux);
 			}
 			last_temp = temp;
 			last_humi = humi;
@@ -104,6 +180,10 @@ void main_loop(){
 			show_big_number(last_temp,1);
 		}
 
+		show_small_number(lux/100, 1);	
+		show_battery_symbol(0);
+
+/*
 		if(!show_batt_enabled) show_batt_or_humi = true;
 		
 		if(show_batt_or_humi){//Change between Humidity displaying and battery level if show_batt_enabled=true
@@ -113,7 +193,8 @@ void main_loop(){
 			show_small_number((battery_level==100)?99:battery_level,1);
 			show_battery_symbol(1);
 		}
-		
+*/
+
 		show_batt_or_humi = !show_batt_or_humi;
 		
 		if(ble_get_connected()){//If connected notify Sensor data
@@ -124,7 +205,8 @@ void main_loop(){
 
 		if((clock_time() - last_adv_delay) > (advertising_type?5000:10000)*CLOCK_SYS_CLOCK_1MS){//Advetise data delay
 		    if(adv_count >= advertising_interval){
-			set_adv_data(last_temp, last_humi, battery_level, battery_mv);
+			//set_adv_data(last_temp, last_humi, battery_level, battery_mv);
+			set_adv_data_new(lux);
 			last_adv_delay = clock_time();
 			adv_count=0;
 		    }

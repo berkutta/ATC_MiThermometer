@@ -46,6 +46,12 @@ RAM uint8_t	advertising_data[] = {
  /*Counter*/0x00
 };
 
+RAM uint8_t advertising_data_mab[] = {
+	/*Header*/	 5, 0x16, 
+	/*preamble*/ 0xAA, 0xAA,
+	/*LUX*/		 0x00, 0x00,
+};
+
 uint8_t mac_public[6];
 	
 uint8_t ota_is_working = 0;
@@ -120,6 +126,9 @@ void init_ble(){
 	ble_name[9] = hex_ascii[mac_public[1] &0x0f];		
 	ble_name[10] = hex_ascii[mac_public[0]>>4];
 	ble_name[11] = hex_ascii[mac_public[0] &0x0f];
+	//char mystring[25];
+	//sprintf(mystring, "N: %s \r\n", ble_name);
+	//at_print(mystring);
 	
 	advertising_data[4] = mac_public[5];
 	advertising_data[5] = mac_public[4];
@@ -168,10 +177,18 @@ void init_ble(){
 
 	bls_ota_clearNewFwDataArea(); //must
 	bls_ota_registerStartCmdCb(app_enter_ota_mode);	
+	//at_print("Initialized BLE \r\n");
 }
 
 bool ble_get_connected(){
 	return ble_connected;
+}
+
+void set_adv_data_new(int16_t lux) {
+	advertising_data_mab[4] = lux >> 8;
+	advertising_data_mab[5] = lux & 0xFF;
+	
+	bls_ll_setAdvData( (uint8_t *)advertising_data_mab, sizeof(advertising_data_mab));
 }
 
 extern bool advertising_type;//Custom or Mi Advertising
@@ -214,7 +231,7 @@ void set_adv_data(int16_t temp, uint16_t humi, uint8_t battery_level, uint16_t b
 		
 		advertising_data[16]++;
 		
-		bls_ll_setAdvData( (uint8_t *)advertising_data, sizeof(advertising_data));	
+		bls_ll_setAdvData( (uint8_t *)advertising_data, sizeof(advertising_data)); 
 	}
 }
 

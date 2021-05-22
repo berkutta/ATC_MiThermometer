@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 void init_ble();
+void set_adv_data_new(int16_t lux);
 void set_adv_data(int16_t temp, uint16_t humi, uint8_t battery_level, uint16_t battery_mv);
 bool ble_get_connected();
 void ble_send_temp(uint16_t temp);
